@@ -1,0 +1,129 @@
+# Analysis on Weight Lifting Exercise Dataset
+
+## Executive Summary
+
+We analyzed the data to see if it is possible to predict which activity was performed at specific point in time.
+
+## Load the training set and transform it to fit our needs
+
+The data, Weight Lifting Exercise Dataset, is from http://groupware.les.inf.puc-rio.br/har.
+
+```{r, cache=TRUE}
+url <- 'http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
+
+# Do not transform string values into factors:
+data <- read.csv(url, na.strings=c("", "NA"), stringsAsFactors=FALSE)
+```
+
+# Data Cleaning
+
+See Appendix for data description.
+
+Check that variable classe is a factor:
+
+```{r}
+class(data$classe)
+```
+
+Transform it into a factor:
+
+```{r}
+data$classe <- as.factor(data$classe)
+class(data$classe)
+```
+
+```{r}
+# save the original ncol value for later checkup
+originalNCol <- ncol(data)
+originalNCol
+```
+
+Remove unnecessary columns
+```{r}
+data <- data[, -c(1,2,3,4,5,6,7)]
+```
+
+
+Remove columns filled with NA's
+
+```{r}
+# we need a function that counts the NA's
+howmanyNAs <- function(colName) { length(which(is.na(data[, colName]))) }
+
+# then, let's count the NA's and put the result into a table
+nainfo <- sapply(names(data), howmanyNAs)
+
+# to keep things clear, let's make a list of column names that are to be removed:
+removeThese <- names(nainfo[nainfo > 19000])
+
+# finally, we are ready to remove the columns
+data <- data[, -which(names(data) %in% removeThese)]
+
+# Check that numbers match
+originalNCol
+ncol(data)
+originalNCol - ncol(data)
+length(removeThese)
+
+```
+
+# Random Forest Model
+
+```{r, cache=TRUE}
+set.seed(100)
+library(randomForest)
+rfModel <- randomForest(classe ~., data=data)
+print(rfModel)
+```
+
+The OOB estimate of error rate is 0.29%. 
+
+## Variable Importance
+
+```{r, cache=TRUE}
+varImpPlot(rfModel)
+```
+
+
+
+# Load Testing Data
+
+```{r, cache=TRUE}
+url_testData <- 'http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
+
+# Do not transform string values into factors:
+testData <- read.csv(url_testData, na.strings=c("", "NA"), stringsAsFactors=FALSE)
+```
+
+# Predict with the Model
+
+```{r, cache=FALSE}
+answers <- predict(rfModel, testData)
+```
+
+# Create submission files
+
+```{r, cache=TRUE}
+
+pml_write_files = function(x)
+{
+  n = length(x)
+  for(i in 1:n)
+  {
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(answers)
+
+``` 
+Then submit them manually. Yes, manually.
+
+# Appendix
+
+## Data description
+
+```{r}
+str(data)
+```
